@@ -65,7 +65,7 @@ GetPasswd       proc
                 mov es, bx
                 mov bx, framePos + 322d
 
-@@Next:         mov ah, 1
+@@Next:         mov ah, 07h
                 int 21h
                 mov byte ptr [di], al
                 mov byte ptr es:[bx], 12h
@@ -351,6 +351,9 @@ ClearScr	proc
 @@Next:		mov es:[bx], ax
 		add bx, 2
 		loop @@Next
+
+                xor ax, ax
+
 		ret
 		endp
 ; -------------------------------------
