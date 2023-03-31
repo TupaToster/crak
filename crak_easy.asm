@@ -47,93 +47,6 @@ start:          call ClearScr
 
                 EXIT
 
-; -------------------------------------
-; Reads password from input until enter is pressed
-; -------------------------------------
-; Expects : none
-
-; Exit : none
-
-; Need : none
-
-; Destroys : ax, di, bx, es
-; ====================================
-
-GetPasswd       proc
-
-                lea di, buffer
-                mov bx, 0b800h
-                mov es, bx
-                mov bx, framePos + 322d
-                mov cx, buffSize
-
-@@Next:         mov ah, 07h
-                int 21h
-                mov byte ptr [di], al
-                cmp al, 0dh
-                je @@break
-                mov byte ptr es:[bx], 12h
-                add bx, 2d
-                add di, 2
-                loop @@Next
-
-@@break:        call getBufferHash
-
-                cmp ax, passHash
-                je @@granta
-                call NoAccess
-@@granta:       call Access
-
-                endp
-
-; ------------------------------------
-; Hashes the contents of buffer straight up to 'enter' symbol
-; ------------------------------------
-; Expects : buffer containing anything
-
-; Exit : hash in ax
-
-; Needs : none
-
-; Destroys : ax, si, bx, cx
-; ====================================
-getBufferHash   proc            ; при 6-значном пароле который может состоять из любых символов таблицы размером в ~100
-                                ; при выборе множителя из таблицы размером 10 рандомно при каждом запуске
-                                ; подбор пароля по известному хэшу займет примерно 100^6 * 10/ (10^9) = 1000 сек или 15 минут примерно.
-                                ; Это делает такой метод приемлемым для простого взлома так сказать
-                                ; но я это пока не имплементирую тк не время ещё
-                                ; ну и тут ещё рандом может ролять но это мне влом прикидывать
-
-                                ; было решено по новой следующее
-                                ; пароль из 7 символов
-                                ; статичный множитель
-                                ; и тогда понадобится ~4400 секунд для брутфорса
-                                ; я считаю это очень даже реалистично
-
-                lea si, buffer
-                mov bx, mult
-                xor ax, ax
-                mov cx, buffSize
-@@Next:         cmp byte ptr [si], 0dH
-                je @@break
-                mul bx
-                add al, byte ptr [si]
-                add si, 2
-                loop @@Next
-
-@@break:        lea si, buffer
-                add si, buffSize * 2
-                cmp [si], 0DEDh
-                jne @@buffOverflow
-                add si, 2d
-                cmp [si], 4CFEh
-                jne @@buffOverflow
-                jmp @@nobuffOverfl
-@@buffOverflow: call NoAccess
-@@nobuffOverfl:
-                ret
-                endp
-
 ; ------------------------------
 ; access granted lol
 ; ------------------------------
@@ -182,6 +95,97 @@ Access          proc
 
 @@stopPrint:    EXIT
 
+                ret
+                endp
+
+
+; -------------------------------------
+; Reads password from input until enter is pressed
+; -------------------------------------
+; Expects : none
+
+; Exit : none
+
+; Need : none
+
+; Destroys : ax, di, bx, es
+; ====================================
+
+GetPasswd       proc
+
+                lea di, buffer
+                mov bx, 0b800h
+                mov es, bx
+                mov bx, framePos + 322d
+                ; mov cx, buffSize
+
+@@Next:         mov ah, 07h
+                int 21h
+                mov byte ptr [di], al
+                cmp al, 0dh
+                je @@break
+                mov byte ptr es:[bx], 12h
+                add bx, 2d
+                add di, 2
+                ; loop @@Next
+                jmp @@Next
+
+@@break:        call getBufferHash
+
+                cmp ax, passHash
+                je @@granta
+                call NoAccess
+@@granta:       call Access
+
+                endp
+
+; ------------------------------------
+; Hashes the contents of buffer straight up to 'enter' symbol
+; ------------------------------------
+; Expects : buffer containing anything
+
+; Exit : hash in ax
+
+; Needs : none
+
+; Destroys : ax, si, bx, cx
+; ====================================
+getBufferHash   proc            ; при 6-значном пароле который может состоять из любых символов таблицы размером в ~100
+                                ; при выборе множителя из таблицы размером 10 рандомно при каждом запуске
+                                ; подбор пароля по известному хэшу займет примерно 100^6 * 10/ (10^9) = 1000 сек или 15 минут примерно.
+                                ; Это делает такой метод приемлемым для простого взлома так сказать
+                                ; но я это пока не имплементирую тк не время ещё
+                                ; ну и тут ещё рандом может ролять но это мне влом прикидывать
+
+                                ; было решено по новой следующее
+                                ; пароль из 7 символов
+                                ; статичный множитель
+                                ; и тогда понадобится ~4400 секунд для брутфорса
+                                ; я считаю это очень даже реалистично
+
+buffer  dw      buffSize dup (0DEDh), 0DEDh, 4CFEh
+
+                lea si, buffer
+                mov bx, mult
+                xor ax, ax
+                mov cx, buffSize
+@@Next:         cmp byte ptr [si], 0dH
+                je @@break
+                mul bx
+                add al, byte ptr [si]
+                add si, 2
+                loop @@Next
+@@break:
+; @@break:        lea si, buffer
+;                 add si, buffSize * 2
+;                 cmp [si], 0DEDh
+;                 jne @@buffOverflow
+;                 add si, 2d
+;                 cmp [si], 4CFEh
+;                 jne @@buffOverflow
+;                 jmp @@nobuffOverfl
+; @@buffOverflow: call NoAccess
+; @@nobuffOverfl:
                 ret
                 endp
 
@@ -411,7 +415,6 @@ DrawY		proc
 
 cool    db      '   Access Granted$'
 nocool  db      '  Access Un-Granted$'
-buffer  dw      buffSize dup (0DEDh), 0DEDh, 4CFEh
 msg     db      'Insert password:$'
 
 end             start
