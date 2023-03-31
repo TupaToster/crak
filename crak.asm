@@ -13,7 +13,8 @@ RBA             equ     1Fbch               ; right bottom angle
 FillStyle       equ     1Fh                 ; a byte for style
 FieldStyle      equ     78h                 ; style byte for passwd field
 mult            equ     151d                ; hash multiplier
-passHash        equ     00d6h               ; hashed password (asmLol)
+passHash        equ     1287h               ; hashed password (asmLol1)
+buffSize        equ     20d                ; size of buffer
 
 .code
 org 100h
@@ -68,11 +69,13 @@ GetPasswd       proc
 @@Next:         mov ah, 07h
                 int 21h
                 mov byte ptr [di], al
+                cmp al, 0dh
+                je @@break
                 mov byte ptr es:[bx], 12h
                 add bx, 2d
                 add di, 2
-                cmp al, 0Dh
-                jne @@Next
+                jmp @@Next
+@@break:
 
                 call getBufferHash
 
@@ -94,17 +97,23 @@ GetPasswd       proc
 
 ; Destroys : ax, si, bx, cx
 ; ====================================
-getBufferHash   proc            ; при 6-значном пароле который может состоять из любых симболов таблицы размером в ~100
+getBufferHash   proc            ; при 6-значном пароле который может состоять из любых символов таблицы размером в ~100
                                 ; при выборе множителя из таблицы размером 10 рандомно при каждом запуске
                                 ; подбор пароля по известному хэшу займет примерно 100^6 * 10/ (10^9) = 1000 сек или 15 минут примерно.
                                 ; Это делает такой метод приемлемым для простого взлома так сказать
                                 ; но я это пока не имплементирую тк не время ещё
                                 ; ну и тут ещё рандом может ролять но это мне влом прикидывать
 
+                                ; было решено по новой следующее
+                                ; пароль из 7 символов
+                                ; статичный множитель
+                                ; и тогда понадобится ~4400 секунд для брутфорса
+                                ; я считаю это очень даже реалистично
+
                 lea si, buffer
                 mov bx, mult
                 xor ax, ax
-                mov cx, 127d
+                mov cx, buffSize
 @@Next:         cmp byte ptr [si], 0dH
                 je @@break
                 mul bx
@@ -113,7 +122,7 @@ getBufferHash   proc            ; при 6-значном пароле кото�
                 loop @@Next
 
 @@break:        lea si, buffer
-                add si, 250d
+                add si, buffSize * 2
                 cmp [si], 0C0FEh
                 jne @@buffOverflow
                 add si, 2d
@@ -121,9 +130,7 @@ getBufferHash   proc            ; при 6-значном пароле кото�
                 jne @@buffOverflow
                 jmp @@nobuffOverfl
 @@buffOverflow: call NoAccess
-@@nobuffOverfl: 
-
-
+@@nobuffOverfl:
                 ret
                 endp
 
@@ -404,7 +411,7 @@ DrawY		proc
 
 cool    db      '   Access Granted$'
 nocool  db      '  Access Un-Granted$'
-buffer  dw      125 dup (0DEDh), 0C0FEh, 4DEDh
+buffer  dw      buffSize dup (0DEDh), 0C0FEh, 4DEDh
 msg     db      'Insert password:$'
 
 end             start
